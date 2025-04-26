@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>World Time Converter</title>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
+  <script>
+    const { DateTime } = luxon;
+
+    const groupedLocations = {
+      "United States + Canada": [
+        { name: "Winston-Salem, NC", zone: "America/New_York" },
+        { name: "Perris, CA", zone: "America/Los_Angeles" }
+      ],
+      "Central America and Caribbean": [
+        { name: "Santo Domingo", zone: "America/Santo_Domingo" },
+        { name: "San Salvador", zone: "America/El_Salvador" },
+        { name: "Costa Rica", zone: "America/Costa_Rica" },
+        { name: "San Pedro Sula", zone: "America/Tegucigalpa" }
+      ],
+      "Asia": [
+        { name: "Bangkok", zone: "Asia/Bangkok" }
+      ],
+      "Australia": [
+        { name: "Sydney", zone: "Australia/Sydney" },
+        { name: "Melbourne", zone: "Australia/Melbourne" }
+      ]
+    };
+
+    const userZone = DateTime.local().zoneName;
+
+    function updateClocks() {
+      const now = DateTime.local();
+      const currentContainer = document.getElementById("current-times");
+      currentContainer.innerHTML = "";
+      for (const group in groupedLocations) {
+        const section = document.createElement("div");
+        section.innerHTML = `<h3>${group}</h3>`;
+        const grid = document.createElement("div");
+        grid.className = "grid";
+        groupedLocations[group].forEach(loc => {
+          const dateStr = now.setZone(loc.zone).toFormat("cccc, LLL dd yyyy");
+          const timeStr = now.setZone(loc.zone).toFormat("hh:mm:ss a ZZZZ");
+          const card = document.createElement("div");
+          card.className = "card";
+          if (loc.zone === userZone) {
+            card.classList.add("highlight");
+          }
+          card.innerHTML = `<h4>${loc.name}</h4><p>${dateStr}<br>${timeStr}</p>`;
+          grid.appendChild(card);
+        });
+        section.appendChild(grid);
+        currentContainer.appendChild(section);
+      }
+    }
+
+    function convertTime() {
+      const baseZone = document.getElementById("base-location").value;
+      const inputDate = document.getElementById("datetime").value;
+      const baseTime = DateTime.fromISO(inputDate, { zone: baseZone });
+      const convertContainer = document.getElementById("converted-times");
+      convertContainer.innerHTML = "";
+      for (const group in groupedLocations) {
+        const section = document.createElement("div");
+        section.innerHTML = `<h3>${group}</h3>`;
+        const grid = document.createElement("div");
+        grid.className = "grid";
+        groupedLocations[group].forEach(loc => {
+          const dateStr = baseTime.setZone(loc.zone).toFormat("cccc, LLL dd yyyy");
+          const timeStr = baseTime.setZone(loc.zone).toFormat("hh:mm a ZZZZ");
+          const card = document.createElement("div");
+          card.className = "card";
+          card.innerHTML = `<h4>${loc.name}</h4><p>${dateStr}<br>${timeStr}</p>`;
+          grid.appendChild(card);
+        });
+        section.appendChild(grid);
+        convertContainer.appendChild(section);
+      }
+    }
+
+    setInterval(updateClocks, 1000);
+    window.onload = updateClocks;
+  </script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 1rem;
+      max-width: 1200px;
+      margin: auto;
+      background: #f4f4f4;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    h3 {
+      margin-top: 2rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      background: white;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+    .highlight {
+      border: 2px solid #28a745;
+      background-color: #e6ffe6;
+    }
+    label, select, input, button {
+      display: block;
+      width: 100%;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌐 World Time Viewer & Converter</h1>
+
+  <h2>🕒 Current Times</h2>
+  <div id="current-times"></div>
+
+  <h2>📅 Convert Future Time</h2>
+  <label for="base-location">Select Base Location:</label>
+  <select id="base-location">
+    <option value="America/New_York">Winston-Salem, NC</option>
+    <option value="America/Los_Angeles">Perris, CA</option>
+    <option value="America/Santo_Domingo">Santo Domingo</option>
+    <option value="America/El_Salvador">San Salvador</option>
+    <option value="America/Costa_Rica">Costa Rica</option>
+    <option value="America/Tegucigalpa">San Pedro Sula</option>
+    <option value="Asia/Bangkok">Bangkok</option>
+    <option value="Australia/Sydney">Sydney</option>
+    <option value="Australia/Melbourne">Melbourne</option>
+  </select>
+
+  <label for="datetime">Select Date & Time:</label>
+  <input type="datetime-local" id="datetime" />
+
+  <button onclick="convertTime()">Convert</button>
+
+  <h2>🌍 Converted Times</h2>
+  <div id="converted-times"></div>
+</body>
+</html>
