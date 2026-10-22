@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "1.0.0",
+  "id": "79202bc6-d001-400e-9901-e07a20ebfd1c",
+  "developer": {
+    "name": "Justin Ross",
+    "websiteUrl": "https://justinross58.github.io/world-time-zone/",
+    "privacyUrl": "https://justinross58.github.io/world-time-zone/privacy.html",
+    "termsOfUseUrl": "https://justinross58.github.io/world-time-zone/privacy.html"
+  },
+  "name": {
+    "short": "Meridian World Clock",
+    "full": "Meridian World Clock"
+  },
+  "description": {
+    "short": "Live time in your team's cities, and a planner to convert meeting times.",
+    "full": "See the current time in the cities you work with, grouped by region (USA/Canada, Central America/Caribbean, South America, Europe, Asia, Australia). Choose which cities to track, then pick a date and time in one city to see it in every other city, color-coded by Early Morning, Working, Late afternoon, Evening and Night."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#15203A",
+  "staticTabs": [
+    {
+      "entityId": "worldclock",
+      "name": "World Clock",
+      "contentUrl": "https://justinross58.github.io/world-time-zone/",
+      "websiteUrl": "https://justinross58.github.io/world-time-zone/",
+      "scopes": ["personal"]
+    }
+  ],
+  "permissions": [],
+  "validDomains": ["justinross58.github.io"]
+}

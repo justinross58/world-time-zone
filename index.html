@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Live clocks for selected cities grouped by region, plus a planner that converts a date and time in one city to all the others.">
+<title>Meridian World Clock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column of two panels — live clocks (pick cities by region) above a planner that converts one chosen moment for every city. */
+:root {
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --surface-2: #f6f8fb;
+  --ink: #15203a;
+  --muted: #5a6479;
+  --line: #d9dfe9;
+  --accent: #b86200;
+  --accent-soft: #fbeedd;
+  --work: #11795e;
+  --work-soft: #ddf3eb;
+  --early: #0a6c9e;
+  --early-soft: #dceef8;
+  --late: #a35f00;
+  --late-soft: #fcebd2;
+  --eve: #6a3fb0;
+  --eve-soft: #ece4f8;
+  --night: #3c4668;
+  --night-soft: #e2e5ee;
+  --sky-night: #2a3557;
+  --sky-dawn: #e9a86a;
+  --sky-day: #8fc3f0;
+  --font-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --font-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1424; --surface: #171e33; --surface-2: #1c2440; --ink: #e8ecf5; --muted: #9aa4bd; --line: #2b3554;
+    --accent: #f0a04b; --accent-soft: #3a2a17; --work: #4fd1a5; --work-soft: #163a31; --early: #6cc4f0; --early-soft: #15344a; --late: #f0b45a; --late-soft: #3d2c14; --eve: #b99af0; --eve-soft: #2e2347;
+    --night: #a9b3d6; --night-soft: #252e4a; --sky-night: #0b1020; --sky-dawn: #b5703a; --sky-day: #3f77a8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1424; --surface: #171e33; --surface-2: #1c2440; --ink: #e8ecf5; --muted: #9aa4bd; --line: #2b3554;
+  --accent: #f0a04b; --accent-soft: #3a2a17; --work: #4fd1a5; --work-soft: #163a31; --early: #6cc4f0; --early-soft: #15344a; --late: #f0b45a; --late-soft: #3d2c14; --eve: #b99af0; --eve-soft: #2e2347;
+  --night: #a9b3d6; --night-soft: #252e4a; --sky-night: #0b1020; --sky-dawn: #b5703a; --sky-day: #3f77a8;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+/* Header */
+header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+header.top h1 { font-size: clamp(28px, 5vw, 40px); font-weight: 700; letter-spacing: -.02em; line-height: 1.05; }
+header.top p { margin: 6px 0 0; color: var(--muted); max-width: 52ch; }
+.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.seg button { border: 0; background: none; padding: 5px 12px; border-radius: 999px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+
+/* Page nav */
+.pagenav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+.pagenav a { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 8px 6px; border-radius: 9px; text-decoration: none; color: var(--muted); font-weight: 600; font-size: 15px; text-align: center; }
+.pagenav a small { font-weight: 400; font-size: 12px; }
+.pagenav a:hover { color: var(--ink); background: var(--surface-2); }
+.pagenav a[aria-current="page"] { background: var(--ink); color: var(--bg); }
+.pagenav a[aria-current="page"] small { opacity: .75; }
+.page-foot { display: flex; justify-content: flex-end; }
+.nextbtn { display: inline-flex; align-items: center; gap: 6px; background: var(--ink); color: var(--bg); border-radius: 8px; padding: 9px 16px; font-weight: 600; text-decoration: none; font-size: 14px; }
+.nextbtn:hover { opacity: .9; }
+.picked { display: flex; flex-wrap: wrap; gap: 6px; }
+.picked .chip { cursor: default; background: var(--accent-soft); border-color: transparent; color: var(--ink); padding-right: 6px; }
+.picked .chip small { color: var(--muted); font-size: 12px; }
+.picked .chip button { border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 15px; line-height: 1; padding: 0 4px; border-radius: 4px; }
+.picked .chip button:hover { color: var(--ink); }
+
+/* Panels */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+.panel-head h2 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+.panel-head .hint { color: var(--muted); font-size: 14px; }
+
+/* City picker */
+.picker { display: flex; flex-direction: column; gap: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); padding: 12px; }
+.tabs-scroll { overflow-x: auto; margin: -2px; padding: 2px; }
+.tabs { display: flex; gap: 6px; width: max-content; }
+.tab { border: 1px solid transparent; background: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-weight: 600; font-size: 14px; color: var(--muted); white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+.tab[aria-selected="true"] { background: var(--surface); border-color: var(--line); color: var(--ink); }
+.tab .count { font-family: var(--font-mono); font-size: 11px; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 0 6px; min-width: 18px; text-align: center; }
+.tab .count[data-zero="true"] { visibility: hidden; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+.chip .off { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.chip[aria-pressed="true"] .off { color: inherit; opacity: .7; }
+.picker-foot { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.linkbtn { background: none; border: 0; padding: 0; cursor: pointer; color: var(--accent); font-weight: 600; font-size: 13px; }
+
+/* Live clocks */
+.region-group { display: flex; flex-direction: column; gap: 10px; }
+.region-group h3 { font-family: var(--font-body); font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.region-group h3::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.clock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.clock { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px 12px; display: flex; flex-direction: column; gap: 6px; position: relative; min-width: 0; }
+.clock .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.clock .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clock .x { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
+.clock .x:hover { color: var(--ink); background: var(--surface-2); }
+.clock .time { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 28px; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; }
+.clock .time .sec { font-size: 14px; color: var(--muted); font-weight: 400; margin-left: 2px; }
+.clock .time .ampm { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+.clock .meta { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.daybar { position: relative; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--sky-night) 0%, var(--sky-night) 20%, var(--sky-dawn) 27%, var(--sky-day) 35%, var(--sky-day) 72%, var(--sky-dawn) 80%, var(--sky-night) 88%, var(--sky-night) 100%); margin-top: 4px; }
+.daybar .dot { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface); transform: translate(-50%, -50%); box-shadow: 0 0 0 1px var(--accent); }
+.clock.mine { border: 2px solid var(--accent); background: var(--accent-soft); padding: 11px 13px; }
+.clock.mine .daybar .dot { border-color: var(--accent-soft); }
+.clock .yours { display: none; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); }
+.clock.mine .yours { display: block; }
+.empty { color: var(--muted); padding: 16px; text-align: center; border: 1px dashed var(--line); border-radius: 10px; }
+
+/* Planner */
+.plan-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; align-items: end; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.field input, .field select { border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 9px 10px; min-height: 42px; width: 100%; min-width: 0; }
+.quick { display: flex; flex-wrap: wrap; gap: 6px; }
+.quick button { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.quick button:hover { border-color: var(--ink); }
+.anchor { background: var(--accent-soft); border-radius: 10px; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; }
+.anchor strong { font-family: var(--font-mono); font-size: 18px; }
+.anchor span { color: var(--muted); font-size: 14px; }
+
+.results { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 520px; }
+th { text-align: left; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+td.city strong { display: block; font-weight: 600; }
+td.city small { color: var(--muted); font-size: 12px; }
+td.t { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 600; white-space: nowrap; }
+td.d { white-space: nowrap; }
+td.diff { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.shift { display: inline-block; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 1px 7px; margin-left: 6px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pill.work { background: var(--work-soft); color: var(--work); }
+.pill.early { background: var(--early-soft); color: var(--early); }
+.pill.late { background: var(--late-soft); color: var(--late); }
+.pill.eve { background: var(--eve-soft); color: var(--eve); }
+tbody tr { --st: var(--line); --st-soft: transparent; }
+tbody tr.s-early { --st: var(--early); --st-soft: var(--early-soft); }
+tbody tr.s-work { --st: var(--work); --st-soft: var(--work-soft); }
+tbody tr.s-late { --st: var(--late); --st-soft: var(--late-soft); }
+tbody tr.s-eve { --st: var(--eve); --st-soft: var(--eve-soft); }
+tbody tr.s-night { --st: var(--night); --st-soft: var(--night-soft); }
+tbody tr td { background: color-mix(in srgb, var(--st-soft) 70%, transparent); }
+tbody tr td:first-child { box-shadow: inset 4px 0 0 var(--st); }
+tbody tr td.t { color: var(--st); }
+.reftag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; background: var(--ink); color: var(--bg); border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: 1px; }
+tr.ref td { font-weight: 600; border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); }
+.pill.night { background: var(--night-soft); color: var(--night); }
+.legend { display: grid; grid-template-columns: repeat(2, max-content); grid-template-rows: repeat(3, auto); grid-auto-flow: column; gap: 6px 40px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.legend .li { display: grid; grid-template-columns: 9.5em max-content; gap: 12px; align-items: center; }
+.legend .pill { justify-self: stretch; }
+@media (max-width: 520px) { .legend { grid-template-columns: max-content; grid-template-rows: none; grid-auto-flow: row; } }
+
+footer { color: var(--muted); font-size: 13px; text-align: center; }
+
+@media (max-width: 560px) {
+  .panel { padding: 16px; }
+  .clock .time { font-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Base reset (standalone page) */
+html { -webkit-text-size-adjust: 100%; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+
+/* Inside Microsoft Teams: Teams already shows the app name, so drop the big heading */
+.in-teams header.top h1, .in-teams header.top p { display: none; }
+.in-teams body { padding-block: 12px 32px; }
+.in-teams .wrap { gap: 18px; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@microsoft/teams-js@2.56.0/dist/umd/MicrosoftTeams.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow" id="localLine">Your time</div>
+      <h1>Meridian World Clock</h1>
+      <p>Watch local time in the cities you work with, choose which cities to track, and plan a time in one city to see it everywhere else.</p>
+    </div>
+    <div class="toolbar">
+      <div class="seg" role="group" aria-label="Clock format">
+        <button type="button" id="fmt12" aria-pressed="true">12h</button>
+        <button type="button" id="fmt24" aria-pressed="false">24h</button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="pagenav" aria-label="Pages">
+    <a href="#clocks" data-nav="clocks">Clocks<small>Live time now</small></a>
+    <a href="#cities" data-nav="cities">Cities<small>Choose locations</small></a>
+    <a href="#plan" data-nav="plan">Planner<small>Convert a time</small></a>
+  </nav>
+
+  <section class="panel" data-page="clocks" aria-labelledby="clocksTitle">
+    <div class="panel-head">
+      <h2 id="clocksTitle">Time right now</h2>
+      <a class="linkbtn" href="#cities">Edit cities</a>
+    </div>
+    <div id="clocks" style="display:flex;flex-direction:column;gap:20px"></div>
+  </section>
+
+  <section class="panel" data-page="cities" aria-labelledby="citiesTitle" hidden>
+    <div class="panel-head">
+      <h2 id="citiesTitle">Choose your cities</h2>
+      <span class="hint" id="selCount"></span>
+    </div>
+
+    <div class="picker">
+      <div class="tabs-scroll"><div class="tabs" role="tablist" id="tabs"></div></div>
+      <div class="chips" id="chips" role="tabpanel"></div>
+      <div class="picker-foot">
+        <span>Tap a city to add or remove it.</span>
+        <button type="button" class="linkbtn" id="clearRegion">Clear this region</button>
+        <button type="button" class="linkbtn" id="resetAll">Reset to defaults</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Selected</label>
+      <div class="picked" id="picked"></div>
+    </div>
+    <div class="page-foot"><a class="nextbtn" href="#clocks">See clocks →</a></div>
+  </section>
+
+  <section class="panel" data-page="plan" aria-labelledby="planTitle" hidden>
+    <div class="panel-head">
+      <h2 id="planTitle">Plan a time</h2>
+      <span class="hint">Set a date and time in one of your cities</span>
+    </div>
+
+    <div class="plan-form">
+      <div class="field">
+        <label for="refCity">Time is in</label>
+        <select id="refCity"></select>
+      </div>
+      <div class="field">
+        <label for="planDate">Date</label>
+        <input type="date" id="planDate">
+      </div>
+      <div class="field">
+        <label for="planTime">Time</label>
+        <input type="time" id="planTime" step="900">
+      </div>
+    </div>
+    <div class="quick" aria-label="Quick picks">
+      <button type="button" data-q="now">Now</button>
+      <button type="button" data-q="9">9 AM</button>
+      <button type="button" data-q="14">2 PM</button>
+      <button type="button" data-q="21">9 PM</button>
+    </div>
+
+    <div class="anchor" id="anchor"></div>
+
+    <div class="results">
+      <table>
+        <thead><tr><th>City</th><th>Local time</th><th>Date</th><th>vs. reference</th><th>Status</th></tr></thead>
+        <tbody id="planBody"></tbody>
+      </table>
+    </div>
+    <div class="legend">
+      <div class="li"><span class="pill early">Early Morning</span><span>7–8 AM</span></div>
+      <div class="li"><span class="pill work">Working</span><span>8 AM–5:30 PM</span></div>
+      <div class="li"><span class="pill late">Late afternoon</span><span>5:30–8 PM</span></div>
+      <div class="li"><span class="pill eve">Evening</span><span>8–10 PM</span></div>
+      <div class="li"><span class="pill night">Night</span><span>10 PM–7 AM</span></div>
+    </div>
+  </section>
+
+  <footer>Times use your browser's time zone database, so daylight saving changes are handled automatically. · <a class="linkbtn" href="privacy.html">Privacy</a></footer>
+</div>
+
+<script>
+const REGIONS = [
+  { id: "na", name: "USA / Canada", cities: [
+    ["New York","America/New_York"],["Winston-Salem, NC","America/New_York"],["Chicago","America/Chicago"],["Dallas","America/Chicago"],["Denver","America/Denver"],
+    ["Phoenix","America/Phoenix"],["Los Angeles","America/Los_Angeles"],["Perris, CA","America/Los_Angeles"],["Seattle","America/Los_Angeles"],["Anchorage","America/Anchorage"],
+    ["Honolulu","Pacific/Honolulu"],["Toronto","America/Toronto"],["Montreal","America/Toronto"],["Vancouver","America/Vancouver"],
+    ["Calgary","America/Edmonton"],["Halifax","America/Halifax"],["St. John's","America/St_Johns"] ]},
+  { id: "ca", name: "Central America / Caribbean", cities: [
+    ["Mexico City","America/Mexico_City"],["Monterrey","America/Monterrey"],["Cancún","America/Cancun"],["Tijuana","America/Tijuana"],
+    ["Guatemala City","America/Guatemala"],["San Salvador","America/El_Salvador"],["Tegucigalpa","America/Tegucigalpa"],["San Pedro Sula","America/Tegucigalpa"],["San José","America/Costa_Rica"],
+    ["Panama City","America/Panama"],["Havana","America/Havana"],["Kingston","America/Jamaica"],["Nassau","America/Nassau"],
+    ["Santo Domingo","America/Santo_Domingo"],["San Juan","America/Puerto_Rico"],["Port of Spain","America/Port_of_Spain"] ]},
+  { id: "sa", name: "South America", cities: [
+    ["Bogotá","America/Bogota"],["Medellín","America/Bogota"],["Quito","America/Guayaquil"],["Lima","America/Lima"],
+    ["Caracas","America/Caracas"],["La Paz","America/La_Paz"],["Santiago","America/Santiago"],["Buenos Aires","America/Argentina/Buenos_Aires"],
+    ["Montevideo","America/Montevideo"],["Asunción","America/Asuncion"],["São Paulo","America/Sao_Paulo"],["Rio de Janeiro","America/Sao_Paulo"] ]},
+  { id: "eu", name: "Europe", cities: [
+    ["London","Europe/London"],["Dublin","Europe/Dublin"],["Lisbon","Europe/Lisbon"],["Madrid","Europe/Madrid"],["Paris","Europe/Paris"],
+    ["Brussels","Europe/Brussels"],["Amsterdam","Europe/Amsterdam"],["Frankfurt","Europe/Berlin"],["Zurich","Europe/Zurich"],["Milan","Europe/Rome"],
+    ["Copenhagen","Europe/Copenhagen"],["Stockholm","Europe/Stockholm"],["Warsaw","Europe/Warsaw"],["Athens","Europe/Athens"],
+    ["Istanbul","Europe/Istanbul"],["Moscow","Europe/Moscow"] ]},
+  { id: "as", name: "Asia", cities: [
+    ["Dubai","Asia/Dubai"],["Riyadh","Asia/Riyadh"],["Karachi","Asia/Karachi"],["Mumbai","Asia/Kolkata"],["New Delhi","Asia/Kolkata"],
+    ["Dhaka","Asia/Dhaka"],["Bangkok","Asia/Bangkok"],["Ho Chi Minh City","Asia/Ho_Chi_Minh"],["Huế","Asia/Ho_Chi_Minh"],["Jakarta","Asia/Jakarta"],["Singapore","Asia/Singapore"],
+    ["Kuala Lumpur","Asia/Kuala_Lumpur"],["Manila","Asia/Manila"],["Hong Kong","Asia/Hong_Kong"],["Shanghai","Asia/Shanghai"],["Shenzhen","Asia/Shanghai"],
+    ["Taipei","Asia/Taipei"],["Seoul","Asia/Seoul"],["Tokyo","Asia/Tokyo"] ]},
+  { id: "au", name: "Australia", cities: [
+    ["Perth","Australia/Perth"],["Darwin","Australia/Darwin"],["Adelaide","Australia/Adelaide"],["Brisbane","Australia/Brisbane"],
+    ["Sydney","Australia/Sydney"],["Melbourne","Australia/Melbourne"],["Canberra","Australia/Sydney"],["Hobart","Australia/Hobart"],["Auckland","Pacific/Auckland"] ]},
+];
+const CITY = {}; // key -> {key,name,tz,region}
+for (const r of REGIONS) for (const [name, tz] of r.cities) { const key = r.id + ":" + name; CITY[key] = { key, name, tz, region: r.id }; }
+const DEFAULTS = ["na:Montreal","na:Winston-Salem, NC","na:Perris, CA","ca:Santo Domingo","ca:San Salvador","ca:San Pedro Sula","as:Bangkok","as:Huế","as:Dhaka","au:Sydney","au:Melbourne"];
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("meridian:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("meridian:" + k, JSON.stringify(v)); } catch {} },
+};
+let selected = store.get("selected-v2", DEFAULTS).filter(k => CITY[k]);
+let use24 = store.get("use24", false);
+let activeTab = store.get("tab", "na");
+let refKey = store.get("ref-v2", null);
+
+/* ---------- Time zone math ---------- */
+const fmtCache = {};
+function partsIn(tz, ms) {
+  const f = fmtCache[tz] || (fmtCache[tz] = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", weekday: "short" }));
+  const o = {};
+  for (const p of f.formatToParts(new Date(ms))) o[p.type] = p.value;
+  return { y: +o.year, mo: +o.month, d: +o.day, h: (+o.hour) % 24, mi: +o.minute, s: +o.second, wd: o.weekday };
+}
+function offsetMin(tz, ms) {
+  const p = partsIn(tz, ms);
+  return Math.round((Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s) - Math.floor(ms / 1000) * 1000) / 60000);
+}
+// Wall-clock time in a zone -> UTC instant (handles DST transitions)
+function zonedToUtc(y, mo, d, h, mi, tz) {
+  const guess = Date.UTC(y, mo - 1, d, h, mi);
+  const off1 = offsetMin(tz, guess);
+  let utc = guess - off1 * 60000;
+  const off2 = offsetMin(tz, utc);
+  if (off2 !== off1) utc = guess - off2 * 60000;
+  return utc;
+}
+function fmtOffset(min) {
+  const sign = min >= 0 ? "+" : "−", a = Math.abs(min), h = Math.floor(a / 60), m = a % 60;
+  return "UTC" + sign + h + (m ? ":" + String(m).padStart(2, "0") : "");
+}
+function fmtDiff(min) {
+  if (min === 0) return "same time";
+  const sign = min > 0 ? "+" : "−", a = Math.abs(min), h = Math.floor(a / 60), m = a % 60;
+  return sign + h + "h" + (m ? " " + m + "m" : "");
+}
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtTime(p, withSec) {
+  let h = p.h, suffix = "";
+  if (!use24) { suffix = h < 12 ? "AM" : "PM"; h = h % 12 || 12; }
+  const hh = use24 ? String(h).padStart(2, "0") : String(h);
+  return { main: hh + ":" + String(p.mi).padStart(2, "0"), sec: withSec ? ":" + String(p.s).padStart(2, "0") : "", suffix };
+}
+function fmtDate(p) { return p.wd + ", " + MONTHS[p.mo - 1] + " " + p.d; }
+function dayIndex(p) { return Date.UTC(p.y, p.mo - 1, p.d) / 86400000; }
+// Day bands: Early 7–8 AM, Working 8 AM–5:30 PM, Late afternoon 5:30–8 PM, Evening 8–10 PM, Night 10 PM–7 AM
+function status(p) {
+  const t = p.h * 60 + p.mi;
+  if (t >= 420 && t < 480) return ["early", "Early Morning"];
+  if (t >= 480 && t < 1050) return ["work", "Working"];
+  if (t >= 1050 && t < 1200) return ["late", "Late afternoon"];
+  if (t >= 1200 && t < 1320) return ["eve", "Evening"];
+  return ["night", "Night"];
+}
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* ---------- Picker ---------- */
+const $ = id => document.getElementById(id);
+function renderTabs() {
+  $("tabs").innerHTML = REGIONS.map(r => {
+    const n = selected.filter(k => CITY[k].region === r.id).length;
+    return `<button type="button" role="tab" class="tab" data-tab="${r.id}" aria-selected="${r.id === activeTab}">${esc(r.name)}<span class="count" data-zero="${n === 0}">${n}</span></button>`;
+  }).join("");
+}
+function renderChips() {
+  const r = REGIONS.find(r => r.id === activeTab);
+  const now = Date.now();
+  $("chips").innerHTML = r.cities.map(([name, tz]) => {
+    const key = r.id + ":" + name, on = selected.includes(key);
+    return `<button type="button" class="chip" data-key="${esc(key)}" aria-pressed="${on}">${esc(name)}<span class="off">${fmtOffset(offsetMin(tz, now))}</span></button>`;
+  }).join("");
+  $("picked").innerHTML = selected.length ? sortedSelected().map(k => `<span class="chip">${esc(CITY[k].name)} <small>${esc(REGIONS.find(r => r.id === CITY[k].region).name)}</small><button type="button" data-unpick="${esc(k)}" aria-label="Remove ${esc(CITY[k].name)}">×</button></span>`).join("") : `<span class="hint">None yet. Tap a city above.</span>`;
+  $("selCount").textContent = selected.length + (selected.length === 1 ? " city selected" : " cities selected");
+}
+function sortedSelected() {
+  const now = Date.now();
+  return selected.slice().sort((a, b) => offsetMin(CITY[a].tz, now) - offsetMin(CITY[b].tz, now) || CITY[a].name.localeCompare(CITY[b].name));
+}
+
+/* ---------- Live clocks ---------- */
+function renderClocks() {
+  const el = $("clocks");
+  if (!selected.length) { el.innerHTML = `<div class="empty">No cities yet. <a class="linkbtn" href="#cities">Choose cities</a> to add clocks.</div>`; return; }
+  const sorted = sortedSelected();
+  el.innerHTML = REGIONS.filter(r => sorted.some(k => CITY[k].region === r.id)).map(r =>
+    `<div class="region-group"><h3>${esc(r.name)}</h3><div class="clock-grid">` +
+    sorted.filter(k => CITY[k].region === r.id).map(k =>
+      `<div class="clock" data-clock="${esc(k)}">
+        <div class="row"><span class="name">${esc(CITY[k].name)}</span><button type="button" class="x" data-remove="${esc(k)}" aria-label="Remove ${esc(CITY[k].name)}">×</button></div>
+        <span class="yours">Your time zone</span>
+        <div class="time"></div>
+        <div class="meta"><span class="date"></span><span class="off mono"></span></div>
+        <div class="daybar" aria-hidden="true"><span class="dot"></span></div>
+      </div>`).join("") + `</div></div>`).join("");
+  tick();
+}
+function tick() {
+  const now = Date.now();
+  const lp = partsIn(Intl.DateTimeFormat().resolvedOptions().timeZone, now), lt = fmtTime(lp);
+  $("localLine").textContent = "Your time · " + fmtDate(lp) + " · " + lt.main + (lt.suffix ? " " + lt.suffix : "");
+  const myOff = offsetMin(Intl.DateTimeFormat().resolvedOptions().timeZone, now);
+  document.querySelectorAll("[data-clock]").forEach(card => {
+    const c = CITY[card.dataset.clock], p = partsIn(c.tz, now), t = fmtTime(p, true);
+    card.classList.toggle("mine", offsetMin(c.tz, now) === myOff);
+    card.querySelector(".time").innerHTML = `${t.main}<span class="sec">${t.sec}</span>${t.suffix ? `<span class="ampm">${t.suffix}</span>` : ""}`;
+    card.querySelector(".date").textContent = fmtDate(p);
+    card.querySelector(".off").textContent = fmtOffset(offsetMin(c.tz, now));
+    card.querySelector(".dot").style.left = ((p.h * 60 + p.mi) / 1440 * 100) + "%";
+  });
+}
+
+/* ---------- Planner ---------- */
+function renderRefOptions() {
+  const sel = $("refCity"), sorted = sortedSelected();
+  if (!sorted.length) { sel.innerHTML = `<option value="">Add a city first</option>`; sel.disabled = true; refKey = null; return; }
+  sel.disabled = false;
+  if (!refKey || !selected.includes(refKey)) refKey = sorted.includes("na:Winston-Salem, NC") ? "na:Winston-Salem, NC" : sorted[0];
+  sel.innerHTML = REGIONS.filter(r => sorted.some(k => CITY[k].region === r.id)).map(r =>
+    `<optgroup label="${esc(r.name)}">` + sorted.filter(k => CITY[k].region === r.id).map(k => `<option value="${esc(k)}"${k === refKey ? " selected" : ""}>${esc(CITY[k].name)}</option>`).join("") + `</optgroup>`).join("");
+}
+function setPlan(y, mo, d, h, mi) {
+  $("planDate").value = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  $("planTime").value = `${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
+}
+function quick(q) {
+  if (!refKey) return;
+  const tz = CITY[refKey].tz, p = partsIn(tz, Date.now());
+  const base = new Date(Date.UTC(p.y, p.mo - 1, p.d));
+  if (q === "now") { setPlan(p.y, p.mo, p.d, p.h, p.mi); }
+  else {
+    // Keep the chosen date (or today if none) and set the hour
+    const dv = $("planDate").value;
+    if (dv) { const [y, mo, d] = dv.split("-").map(Number); setPlan(y, mo, d, +q, 0); }
+    else setPlan(p.y, p.mo, p.d, +q, 0);
+  }
+  renderPlan();
+}
+function renderPlan() {
+  const body = $("planBody"), anchor = $("anchor");
+  if (!refKey) { body.innerHTML = ""; anchor.innerHTML = `<span>Add at least one city above to plan a time.</span>`; return; }
+  const dv = $("planDate").value, tv = $("planTime").value;
+  if (!dv || !tv) { body.innerHTML = ""; anchor.innerHTML = `<span>Choose a date and a time to see it in every city.</span>`; return; }
+  const [y, mo, d] = dv.split("-").map(Number), [h, mi] = tv.split(":").map(Number);
+  const ref = CITY[refKey], utc = zonedToUtc(y, mo, d, h, mi, ref.tz);
+  const rp = partsIn(ref.tz, utc), rOff = offsetMin(ref.tz, utc), rt = fmtTime(rp);
+  const inPast = utc < Date.now() - 60000;
+  anchor.innerHTML = `<strong>${rt.main}${rt.suffix ? " " + rt.suffix : ""} · ${fmtDate(rp)}</strong><span>in ${esc(ref.name)} (${fmtOffset(rOff)})${inPast ? " · this moment has already passed" : ""}</span>`;
+  const rows = selected.map(k => ({ c: CITY[k], p: partsIn(CITY[k].tz, utc), off: offsetMin(CITY[k].tz, utc) }))
+    .sort((a, b) => a.off - b.off || a.c.name.localeCompare(b.c.name));
+  body.innerHTML = rows.map(({ c, p, off }) => {
+    const t = fmtTime(p), dd = dayIndex(p) - dayIndex(rp), [cls, label] = status(p);
+    const shift = dd === 0 ? "" : `<span class="shift">${dd > 0 ? "+" : "−"}${Math.abs(dd)} day${Math.abs(dd) > 1 ? "s" : ""}</span>`;
+    const isRef = c.key === refKey;
+    return `<tr class="s-${cls}${isRef ? " ref" : ""}">
+      <td class="city"><strong>${esc(c.name)}${isRef ? '<span class="reftag">Reference</span>' : ""}</strong><small>${esc(REGIONS.find(r => r.id === c.region).name)} · ${fmtOffset(off)}</small></td>
+      <td class="t">${t.main}${t.suffix ? " " + t.suffix : ""}</td>
+      <td class="d">${fmtDate(p)}${shift}</td>
+      <td class="diff">${isRef ? "reference" : fmtDiff(off - rOff)}</td>
+      <td><span class="pill ${cls}">${label}</span></td></tr>`;
+  }).join("");
+}
+
+/* ---------- Wiring ---------- */
+function saveSel() { store.set("selected-v2", selected); }
+function refreshAll() { renderTabs(); renderChips(); renderClocks(); renderRefOptions(); renderPlan(); }
+$("tabs").addEventListener("click", e => { const b = e.target.closest("[data-tab]"); if (!b) return; activeTab = b.dataset.tab; store.set("tab", activeTab); renderTabs(); renderChips(); });
+$("chips").addEventListener("click", e => {
+  const b = e.target.closest("[data-key]"); if (!b) return;
+  const k = b.dataset.key;
+  selected = selected.includes(k) ? selected.filter(x => x !== k) : [...selected, k];
+  saveSel(); refreshAll();
+});
+$("clocks").addEventListener("click", e => { const b = e.target.closest("[data-remove]"); if (!b) return; selected = selected.filter(x => x !== b.dataset.remove); saveSel(); refreshAll(); });
+$("clearRegion").addEventListener("click", () => { selected = selected.filter(k => CITY[k].region !== activeTab); saveSel(); refreshAll(); });
+$("resetAll").addEventListener("click", () => { selected = DEFAULTS.slice(); saveSel(); refreshAll(); });
+$("refCity").addEventListener("change", e => { refKey = e.target.value; store.set("ref-v2", refKey); renderPlan(); });
+$("planDate").addEventListener("input", renderPlan);
+$("planTime").addEventListener("input", renderPlan);
+document.querySelector(".quick").addEventListener("click", e => { const b = e.target.closest("[data-q]"); if (b) quick(b.dataset.q); });
+function setFmt(v) { use24 = v; store.set("use24", v); $("fmt12").setAttribute("aria-pressed", !v); $("fmt24").setAttribute("aria-pressed", v); tick(); renderPlan(); }
+$("fmt12").addEventListener("click", () => setFmt(false));
+$("fmt24").addEventListener("click", () => setFmt(true));
+
+$("picked").addEventListener("click", e => { const b = e.target.closest("[data-unpick]"); if (!b) return; selected = selected.filter(x => x !== b.dataset.unpick); saveSel(); refreshAll(); });
+const PAGES = ["clocks", "cities", "plan"];
+function route() {
+  const page = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "clocks";
+  document.querySelectorAll("[data-page]").forEach(s => { s.hidden = s.dataset.page !== page; });
+  document.querySelectorAll("[data-nav]").forEach(a => { if (a.dataset.nav === page) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+route();
+
+setFmt(use24);
+refreshAll();
+quick("9");
+setInterval(tick, 1000);
+</script>
+
+<script>
+// Microsoft Teams integration. Does nothing when the page is opened in a normal browser tab.
+(function () {
+  if (window.self === window.top || !window.microsoftTeams) return;
+  var T = window.microsoftTeams;
+  function applyTheme(t) { document.documentElement.setAttribute("data-theme", t === "default" ? "light" : "dark"); }
+  var timeout = new Promise(function (_, reject) { setTimeout(function () { reject(new Error("Not running in Teams")); }, 4000); });
+  Promise.race([T.app.initialize(), timeout])
+    .then(function () { return T.app.getContext(); })
+    .then(function (ctx) {
+      document.documentElement.classList.add("in-teams");
+      applyTheme(ctx.app && ctx.app.theme);
+      T.app.registerOnThemeChangeHandler(applyTheme);
+    })
+    .catch(function () {});
+})();
+</script>
+</body>
+</html>

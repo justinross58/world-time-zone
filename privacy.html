@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meridian World Clock · Privacy</title>
+<style>
+:root { --bg: #eef1f6; --ink: #15203a; --muted: #5a6479; --accent: #b86200; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0f1424; --ink: #e8ecf5; --muted: #9aa4bd; --accent: #f0a04b; color-scheme: dark; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 40px max(16px, env(safe-area-inset-left, 0px)); }
+main { max-width: 62ch; margin: 0 auto; }
+h1 { font-size: 28px; line-height: 1.2; margin: 0 0 16px; }
+h2 { font-size: 18px; margin: 28px 0 6px; }
+p { margin: 0 0 12px; }
+a { color: var(--accent); }
+.muted { color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Privacy and terms of use</h1>
+  <p class="muted">Meridian World Clock · Last updated October 21, 2026</p>
+
+  <h2>What the app collects</h2>
+  <p>Nothing. The app has no accounts, no analytics and no server of its own. All time calculations run in your browser using its built-in time zone data.</p>
+
+  <h2>What is stored on your device</h2>
+  <p>Your chosen cities, your 12h/24h setting and your planner reference city are saved in your browser's local storage so they are there next time. They never leave your device. Clearing your browser data removes them.</p>
+
+  <h2>Microsoft Teams</h2>
+  <p>When opened inside Teams, the app reads only the Teams theme (light or dark) so it can match it. It does not read your profile, chats, files or calendar.</p>
+
+  <h2>Terms of use</h2>
+  <p>The app is provided as is, without warranty. Times are calculated from standard time zone data and should be correct, but please double-check anything critical, especially around daylight saving changes.</p>
+
+  <p><a href="./">Back to the clock</a></p>
+</main>
+</body>
+</html>
