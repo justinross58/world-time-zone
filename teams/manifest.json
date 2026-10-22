@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
   "manifestVersion": "1.17",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "id": "79202bc6-d001-400e-9901-e07a20ebfd1c",
   "developer": {
     "name": "Justin Ross",
@@ -28,9 +28,12 @@
       "name": "World Clock",
       "contentUrl": "https://justinross58.github.io/world-time-zone/",
       "websiteUrl": "https://justinross58.github.io/world-time-zone/",
-      "scopes": ["personal"]
+      "scopes": [
+        "personal"
+      ]
     }
   ],
-  "permissions": [],
-  "validDomains": ["justinross58.github.io"]
+  "validDomains": [
+    "justinross58.github.io"
+  ]
 }
